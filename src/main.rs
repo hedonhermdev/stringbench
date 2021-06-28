@@ -16,7 +16,7 @@ fn timed<T>(body: impl FnOnce() -> T) -> (T, std::time::Duration) { let start = 
 
 fn string_match(haystack: &[u8], needle: &[u8]) -> Vec<usize> {
     let weight = ModNum::new(M, K).pow(ModNum::new(needle.len().to_u32().unwrap() - 1, K));
-    let needle_hash = needle.iter().rev().fold(ModNum::new(0, K), |old , &x| old*M + ModNum::new(x as u32, K));
+    let needle_hash = needle.iter().fold(ModNum::new(0, K), |old , &x| old*M + ModNum::new(x as u32, K));
 
     let block_size = haystack.len();
 
@@ -35,7 +35,7 @@ fn string_match(haystack: &[u8], needle: &[u8]) -> Vec<usize> {
             .or_else(|| {
                 let span = span!(Level::TRACE, "init");
                 let _guard = span.enter();
-                let hash = win.iter().rev().fold(ModNum::new(0, K), |old , &x| old * M + ModNum::new(x as u32, K));
+                let hash = win.iter().fold(ModNum::new(0, K), |old , &x| old * M + ModNum::new(x as u32, K));
 
                 Some((win[0], hash))
             });
