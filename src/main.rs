@@ -1,9 +1,9 @@
-use std::{time::Instant};
+use std::time::Instant;
 use bare_metal_modulo::*;
 use rayon::prelude::*;
 use fast_tracer::stats;
 use tracing::{span, Level};
-use num::traits::Pow;
+use num::{ToPrimitive, traits::Pow};
 
 const K: u32 = 7907;
 const M: u32 = 256;
@@ -15,13 +15,8 @@ fn timed<T>(body: impl FnOnce() -> T) -> (T, std::time::Duration) { let start = 
 }
 
 fn string_match(haystack: &[u8], needle: &[u8]) -> Vec<usize> {
-    let weights: Vec<_> = (0..needle.len()).map(|e| {
-        let m = ModNum::new(M, K);
-        let e = ModNum::new(e as u32, K);
-        m.pow(e)
-    }).collect();
-
-    let needle_hash = needle.iter().rev().fold(ModNum::new(0, K), |sum, &x| sum + ModNum::new(x as u32, K));
+    let weight = ModNum::new(M, K).pow(ModNum::new(needle.len().to_u32().unwrap() - 1, K));
+    let needle_hash = needle.iter().rev().fold(ModNum::new(0, K), |old , &x| old*M + ModNum::new(x as u32, K));
 
     let block_size = haystack.len();
 
@@ -32,17 +27,15 @@ fn string_match(haystack: &[u8], needle: &[u8]) -> Vec<usize> {
         .scan(|| None, |state, (index, win)| {
             *state = state.map(|(first, prev_hash)| {
                 let first = ModNum::new(first as u32, K);
-                let e = win.len() - 1;
-                let m = ModNum::new(M, K);
                 let last = ModNum::new(*win.last().unwrap() as u32, K);
-                let new_hash = (prev_hash - first * weights[e]) * m + last;
+                let new_hash = (prev_hash - first * weight) * M + last;
 
                 (win[0], new_hash)
             })
             .or_else(|| {
                 let span = span!(Level::TRACE, "init");
                 let _guard = span.enter();
-                let hash = win.iter().rev().fold(ModNum::new(0, K), |sum, &x| sum + ModNum::new(x as u32, K));
+                let hash = win.iter().rev().fold(ModNum::new(0, K), |old , &x| old * M + ModNum::new(x as u32, K));
 
                 Some((win[0], hash))
             });
