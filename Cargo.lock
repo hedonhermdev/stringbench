@@ -152,6 +152,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "12b8adadd720df158f4d70dfe7ccc6adb0472d7c55ca83445f6a5ab3e36f8fb6"
 
 [[package]]
+name = "lipsum"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "42ee7271c76a89032dcc7e595c0a739a9c5514eab483deb0e82981fe2098c56a"
+dependencies = [
+ "rand",
+ "rand_chacha",
+]
+
+[[package]]
 name = "memoffset"
 version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -352,7 +362,6 @@ dependencies = [
 [[package]]
 name = "rayon"
 version = "1.5.1"
-source = "git+https://github.com/hedonhermdev/rayon?branch=adaptive#d273bbd234d5fbe4e0d85b843a59adc48f953521"
 dependencies = [
  "autocfg",
  "crossbeam",
@@ -365,7 +374,6 @@ dependencies = [
 [[package]]
 name = "rayon-core"
 version = "1.9.1"
-source = "git+https://github.com/hedonhermdev/rayon?branch=adaptive#d273bbd234d5fbe4e0d85b843a59adc48f953521"
 dependencies = [
  "crossbeam-channel",
  "crossbeam-deque",
@@ -387,6 +395,7 @@ version = "0.1.0"
 dependencies = [
  "bare_metal_modulo",
  "fast-tracer",
+ "lipsum",
  "num 0.4.0",
  "rayon",
  "tracing",
