@@ -1,11 +1,12 @@
-use std::time::Instant;
+use std::{time::Instant};
+use bare_metal_modulo::*;
 use rayon::prelude::*;
-use modular::*;
 use fast_tracer::stats;
 use tracing::{span, Level};
+use num::traits::Pow;
 
 const K: u32 = 7907;
-const M: i32 = 256;
+const M: u32 = 256;
 
 fn timed<T>(body: impl FnOnce() -> T) -> (T, std::time::Duration) { let start = Instant::now();
     let result = body();
@@ -13,27 +14,14 @@ fn timed<T>(body: impl FnOnce() -> T) -> (T, std::time::Duration) { let start = 
     (result, time_taken)
 }
 
-fn mod_exp(b: i32, e: i32, k: u32) -> Modulo {
-    let mut mul = 1.to_modulo(k);
-    let b = b.to_modulo(k);
-    for _ in 0..e {
-        mul = mul * b;
-    }
-    
-    mul
-}
-
 fn string_match(haystack: &[u8], needle: &[u8]) -> Vec<usize> {
-    let (_, needle_hash) = needle.iter().rev().fold((1.to_modulo(K), 0.to_modulo(K)), |(mut mul, mut sum), &x| {
-        let x = (x as i32).to_modulo(K);
-      
-        sum = sum + (x * mul);
-        mul = mul * M.to_modulo(K);
+    let weights: Vec<_> = (0..needle.len()).map(|e| {
+        let m = ModNum::new(M, K);
+        let e = ModNum::new(e as u32, K);
+        m.pow(e)
+    }).collect();
 
-        (mul, sum)
-    });
-
-    let needle_hash = needle_hash.remainder();
+    let needle_hash = needle.iter().rev().fold(ModNum::new(0, K), |sum, &x| sum + ModNum::new(x as u32, K));
 
     let block_size = haystack.len();
 
@@ -41,38 +29,27 @@ fn string_match(haystack: &[u8], needle: &[u8]) -> Vec<usize> {
         .par_windows(needle.len())
         .enumerate()
         .adaptive(block_size)
-        .scan(|| None, |state: &mut Option<(u8, i32)>, (index, win)| {
-            *state = state
-                .map(|(first, prev_hash)| {
-                    let first = first as i32;
-                    let e = win.len() as i32 - 1;
-                    mod_exp(prev_hash - first, e, K);
-                    let new_hash = (prev_hash.to_modulo(K) - first.to_modulo(K) * mod_exp(M, e, K)) * M.to_modulo(K)
-                        + (*win.last().unwrap() as i32).to_modulo(K);
-                    (win[0], new_hash.remainder())
-                })
-                .or_else(|| {
-                    let span = span!(Level::TRACE, "init");
-                    let _guard = span.enter();
-                    let hash = win
-                        .iter()
-                        .rev()
-                        .fold((1.to_modulo(K), 0.to_modulo(K)), |(mut mul, mut sum), &x| {
-                            let x = (x as i32).to_modulo(K);
-                            
-                            sum = sum + x * mul;
-                            mul = mul * M.to_modulo(K);
+        .scan(|| None, |state, (index, win)| {
+            *state = state.map(|(first, prev_hash)| {
+                let first = ModNum::new(first as u32, K);
+                let e = win.len() - 1;
+                let m = ModNum::new(M, K);
+                let last = ModNum::new(*win.last().unwrap() as u32, K);
+                let new_hash = (prev_hash - first * weights[e]) * m + last;
 
-                            (mul, sum)
-                        })
-                        .1;
+                (win[0], new_hash)
+            })
+            .or_else(|| {
+                let span = span!(Level::TRACE, "init");
+                let _guard = span.enter();
+                let hash = win.iter().rev().fold(ModNum::new(0, K), |sum, &x| sum + ModNum::new(x as u32, K));
 
-                    Some((win[0], hash.remainder()))
-                });
+                Some((win[0], hash))
+            });
 
             state.map(|(_, h)| (index, h))
         })
-        .filter(|(_, h)| *h == needle_hash)
+    .filter(|(_, h)| *h == needle_hash)
         .map(|(index, _)| index)
         .collect()
 }
