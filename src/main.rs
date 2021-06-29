@@ -94,7 +94,7 @@ fn main() {
     
     for size in (10_000..100_000usize).step_by(100) {
         let needle: String = haystack.chars().take(size).collect();
-        let (_count, time_taken) = timed(|| string_match(haystack.as_bytes(), needle.as_bytes(), true));
+        let (_count, time_taken) = stats(timed(|| string_match(haystack.as_bytes(), needle.as_bytes(), true)));
         println!("{},{},{}", &size, "adaptive", time_taken.as_nanos());
     }
 }
