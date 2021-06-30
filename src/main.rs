@@ -45,6 +45,8 @@ fn string_match(haystack: &[u8], needle: &[u8], adaptive: bool) -> usize {
                             (win[0], new_hash)
                         })
                         .or_else(|| {
+                            let span = span!(Level::TRACE, "init");
+                            let _guard = span.enter();
                             let hash = win.iter().fold(ModNum::new(0, K), |old, &x| {
                                 old * M + ModNum::new(x as u32, K)
                             });
@@ -91,12 +93,30 @@ fn string_match(haystack: &[u8], needle: &[u8], adaptive: bool) -> usize {
 
 fn main() {
     let haystack = lipsum_words_from_seed(1_000_000, 0);
-    
-    for size in (10_000..100_000usize).step_by(100) {
-        let needle: String = haystack.chars().take(size).collect();
-        let (_count, time_taken) = stats(timed(|| string_match(haystack.as_bytes(), needle.as_bytes(), true)));
-        println!("{},{},{}", &size, "adaptive", time_taken.as_nanos());
+
+    let needle = haystack.chars().take(100_000).collect::<String>();
+
+
+    for n in 1..=64 {
+        let tp = rayon::ThreadPoolBuilder::new().num_threads(n).build().unwrap();
+
+        let mut sum = 0;
+        for _ in 0..30 {
+            let (count, time_taken) = tp.install(|| timed(|| string_match(haystack.as_bytes(), needle.as_bytes(), true)));
+            sum += time_taken.as_nanos(); 
+        }
+        let avg = sum / 30;
+        println!("{},{},{}", &tp.current_num_threads(), "adaptive", avg);
     }
+    
+//     for size in (1000..100_000).step_by(100) {
+//         let needle: String = haystack.chars().take(size).collect();
+//         let (count1, time_taken) = timed(|| string_match(haystack.as_bytes(), needle.as_bytes(), false));
+//         println!("{},{},{}", &size, "rayon", time_taken.as_nanos());
+//         let (count2, time_taken) = timed(|| string_match(haystack.as_bytes(), needle.as_bytes(), true));
+//         println!("{},{},{}", &size, "adaptive", time_taken.as_nanos());
+//         assert_eq!(count1, count2);
+//     }
 }
 
 #[cfg(test)]

@@ -362,6 +362,7 @@ dependencies = [
 [[package]]
 name = "rayon"
 version = "1.5.1"
+source = "git+https://github.com/hedonhermdev/rayon?branch=adaptive#d273bbd234d5fbe4e0d85b843a59adc48f953521"
 dependencies = [
  "autocfg",
  "crossbeam",
@@ -374,6 +375,7 @@ dependencies = [
 [[package]]
 name = "rayon-core"
 version = "1.9.1"
+source = "git+https://github.com/hedonhermdev/rayon?branch=adaptive#d273bbd234d5fbe4e0d85b843a59adc48f953521"
 dependencies = [
  "crossbeam-channel",
  "crossbeam-deque",
