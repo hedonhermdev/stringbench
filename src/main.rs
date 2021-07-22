@@ -63,64 +63,11 @@ fn main() {
 
     let needle = haystack.chars().take(10_000_000).collect::<String>();
 
-    let mut block_size = 100;
+    let block_size = 1000;
 
-    while block_size < haystack.len() {
-        stats(|| {
-            let (_count, time_taken) =
-                timed(|| string_match(haystack.as_bytes(), needle.as_bytes(), block_size));
-                println!("{}, {}", block_size, time_taken.as_nanos());
-        });
-
-        block_size *= 2;
-    }
-
-    // for n in 1..=64 {
-    //     let tp = rayon::ThreadPoolBuilder::new().num_threads(n).build().unwrap();
-
-    //     let mut sum = 0;
-    //     for _ in 0..30 {
-    //         let (count, time_taken) = tp.install(|| stats(|| timed(|| string_match(haystack.as_bytes(), needle.as_bytes(), true))));
-    //         sum += time_taken.as_nanos();
-    //     }
-    //     let avg = sum / 30;
-    //     println!("{},{},{}", &tp.current_num_threads(), "adaptive", avg);
-    // }
-
-    //     for size in (1000..100_000).step_by(100) {
-    //         let needle: String = haystack.chars().take(size).collect();
-    //         let (count1, time_taken) = timed(|| string_match(haystack.as_bytes(), needle.as_bytes(), false));
-    //         println!("{},{},{}", &size, "rayon", time_taken.as_nanos());
-    //         let (count2, time_taken) = timed(|| string_match(haystack.as_bytes(), needle.as_bytes(), true));
-    //         println!("{},{},{}", &size, "adaptive", time_taken.as_nanos());
-    //         assert_eq!(count1, count2);
-    //     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::string_match;
-
-    use lipsum::lipsum_words_from_seed;
-    use test::Bencher;
-
-    #[bench]
-    fn bench_adaptive(b: &mut Bencher) {
-        b.iter(|| {
-            let haystack = lipsum_words_from_seed(100_000, 0);
-            let needle = haystack.chars().take(10_000).collect::<String>();
-
-            let matches = string_match(haystack.as_bytes(), needle.as_bytes(), 10000);
-
-            matches
-        })
-    }
-
-    #[test]
-    fn match_exists() {
-        let haystack = "applepineapplepenpineapplepen";
-        let needle = "apple";
-
-        let matches = string_match(haystack.as_bytes(), needle.as_bytes(), true);
+    for _ in 0..10 {
+        let (_count, time_taken) =
+            timed(|| string_match(haystack.as_bytes(), needle.as_bytes(), block_size));
+            println!("{}, {}", block_size, time_taken.as_nanos());
     }
 }
