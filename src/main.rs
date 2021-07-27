@@ -4,23 +4,20 @@ use fast_tracer::{stats, svg};
 use lipsum::lipsum_words_from_seed;
 use num::traits::Pow;
 use rayon::prelude::*;
-use std::time::Instant;
-
-use tracing::{span, Level};
-
-extern crate test;
+use tracing::{Level,span};
+use std::time::{Instant, Duration};
 
 const K: u32 = 7907;
 const M: u32 = 256;
 
-fn timed<T>(body: impl FnOnce() -> T) -> (T, std::time::Duration) {
+fn timed<T>(body: impl FnOnce() -> T) -> (T, Duration) {
     let start = Instant::now();
     let result = body();
     let time_taken = start.elapsed();
     (result, time_taken)
 }
 
-fn string_match(haystack: &[u8], needle: &[u8], block_size: usize) -> usize {
+fn string_match(haystack: &[u8], needle: &[u8], target_time: Duration) -> usize {
     let weight = ModNum::new(M, K).pow(needle.len() as u32 - 1);
     let needle_hash = needle.iter().fold(ModNum::new(0, K), |old, &x| {
         old * M + ModNum::new(x as u32, K)
@@ -28,8 +25,10 @@ fn string_match(haystack: &[u8], needle: &[u8], block_size: usize) -> usize {
 
     let windows = haystack.par_windows(needle.len()).enumerate();
 
+    let span = span!(Level::TRACE, "iter_fold");
+    let _guard = span.enter();
     windows
-        .adaptive(block_size)
+        .adaptive(target_time)
         .scan(
             || None,
             |state, (index, win)| {
@@ -58,16 +57,15 @@ fn string_match(haystack: &[u8], needle: &[u8], block_size: usize) -> usize {
 }
 
 fn main() {
-    let haystack = lipsum_words_from_seed(60_000_000, 0);
-    println!("built haystack {}", haystack.len());
+    let haystack = lipsum_words_from_seed(600_000, 0);
+    let needle = haystack.chars().take(300_000).collect::<String>();
+    eprintln!("built haystack {}", haystack.len());
 
-    let needle = haystack.chars().take(10_000_000).collect::<String>();
+    println!("scheme,num_threads,time_taken");
 
-    let block_size = 1000;
-
-    for _ in 0..10 {
+    stats(|| {
         let (_count, time_taken) =
-            timed(|| string_match(haystack.as_bytes(), needle.as_bytes(), block_size));
-            println!("{}, {}", block_size, time_taken.as_nanos());
-    }
+        timed(|| string_match(haystack.as_bytes(), needle.as_bytes(), Duration::from_nanos(400000)));
+        println!("{},{},{}", "time_based", 4, time_taken.as_nanos());
+    });
 }
